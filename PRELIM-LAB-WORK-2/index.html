@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Attendance Tracker with Signature</title>
+
+    <style>
+        :root {
+            --maroon: #7a0c0c;
+            --gold: #d4af37;
+            --light-gold: #f5e6a1;
+            --white: #ffffff;
+            --overlay: rgba(0, 0, 0, 0.7);
+        }
+
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+
+        body {
+            margin: 0; min-height: 100vh;
+            background: linear-gradient(135deg, var(--maroon), #4d0606);
+            display: flex; align-items: center; justify-content: center;
+            padding: 20px;
+        }
+
+        .main-wrapper {
+            display: flex; gap: 20px; max-width: 1000px; width: 100%;
+            align-items: flex-start;
+        }
+
+        .container {
+            background: var(--white); flex: 1.2; padding: 25px;
+            border-radius: 12px; box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+            border-top: 8px solid var(--gold);
+        }
+
+        /* --- SIGNATURE CANVAS STYLES --- */
+        .signature-wrapper {
+            margin-top: 10px;
+            border: 2px solid var(--gold);
+            border-radius: 6px;
+            background: #fff;
+            position: relative;
+            cursor: crosshair;
+            touch-action: none; /* Prevents scrolling while drawing on mobile */
+        }
+
+        #signature-pad {
+            display: block;
+            width: 100%;
+            height: 150px;
+        }
+
+        .clear-btn {
+            background: #eee; color: #333; font-size: 11px; padding: 5px 10px;
+            border: 1px solid #ccc; border-radius: 4px; cursor: pointer;
+            margin-top: 5px; float: right;
+        }
+
+        .clear-btn:hover { background: #ddd; }
+
+        /* History Panel */
+        .history-panel {
+            background: rgba(255, 255, 255, 0.9); flex: 1;
+            height: 600px; padding: 20px; border-radius: 12px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+            display: flex; flex-direction: column;
+        }
+
+        #historyList {
+            list-style: none; padding: 0; overflow-y: auto; margin: 0;
+        }
+
+        .history-item {
+            background: white; padding: 10px; margin-bottom: 10px;
+            border-left: 4px solid var(--maroon); border-radius: 4px;
+            font-size: 13px; display: flex; flex-direction: column;
+        }
+
+        .history-sig-img {
+            max-height: 40px; width: fit-content; border: 1px solid #eee;
+            margin-top: 5px; background: #fafafa;
+        }
+
+        h1 { text-align: center; color: var(--maroon); margin: 0 0 20px 0; }
+        label { display: block; margin-top: 15px; font-weight: bold; color: var(--maroon); }
+        input { width: 100%; padding: 10px; margin-top: 6px; border-radius: 6px; border: 2px solid var(--gold); }
+        input[readonly] { background-color: var(--light-gold); }
+
+        .submit-btn {
+            width: 100%; margin-top: 25px; padding: 15px;
+            background-color: var(--maroon); color: white;
+            font-size: 18px; font-weight: bold; border: none;
+            border-radius: 8px; cursor: pointer;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%; background: var(--overlay);
+            z-index: 1000; align-items: center; justify-content: center;
+        }
+        .modal-content {
+            background: white; padding: 30px; border-radius: 15px;
+            text-align: center; max-width: 320px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="main-wrapper">
+        <div class="container">
+            <h1>Attendance</h1>
+
+            <label>Full Name</label>
+            <input type="text" id="name" placeholder="Juan Dela Cruz">
+
+            <label>Course / Year</label>
+            <input type="text" id="course" placeholder="BSIT - 2A">
+
+            <label>Time In</label>
+            <input type="text" id="time" readonly>
+
+            <label>Digital Signature</label>
+            <div class="signature-wrapper">
+                <canvas id="signature-pad"></canvas>
+            </div>
+            <button class="clear-btn" onclick="clearSignature()">Clear Pad</button>
+
+            <button class="submit-btn" onclick="submitAttendance()">Submit Attendance</button>
+            <footer style="text-align:center; margin-top:40px; font-size:12px;">Perpetual Help System</footer>
+        </div>
+
+        <div class="history-panel">
+            <h2 style="color:var(--maroon); border-bottom: 2px solid var(--gold); padding-bottom:10px;">Login History</h2>
+            <ul id="historyList"></ul>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="successModal">
+        <div class="modal-content">
+            <h2 style="font-size: 40px; margin:0;">✅</h2>
+            <h2>Success!</h2>
+            <p id="modalMessage"></p>
+            <button onclick="closeModal()" style="padding:10px 20px; cursor:pointer;">Close</button>
+        </div>
+    </div>
+
+    <script>
+        // --- CLOCK LOGIC ---
+        function updateTime() {
+            document.getElementById("time").value = new Date().toLocaleString();
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+
+        // --- SIGNATURE PAD LOGIC ---
+        const canvas = document.getElementById('signature-pad');
+        const ctx = canvas.getContext('2d');
+        let drawing = false;
+
+        // Resize canvas for high resolution
+        function resizeCanvas() {
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            canvas.width = canvas.offsetWidth * ratio;
+            canvas.height = canvas.offsetHeight * ratio;
+            ctx.scale(ratio, ratio);
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = '#000';
+        }
+        window.onresize = resizeCanvas;
+        resizeCanvas();
+
+        function getMousePos(evt) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: (evt.clientX || evt.touches[0].clientX) - rect.left,
+                y: (evt.clientY || evt.touches[0].clientY) - rect.top
+            };
+        }
+
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('touchstart', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('touchmove', draw);
+        window.addEventListener('mouseup', stopDrawing);
+        window.addEventListener('touchend', stopDrawing);
+
+        function startDrawing(e) {
+            drawing = true;
+            const pos = getMousePos(e);
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+            e.preventDefault();
+        }
+
+        function draw(e) {
+            if (!drawing) return;
+            const pos = getMousePos(e);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+            e.preventDefault();
+        }
+
+        function stopDrawing() { drawing = false; }
+
+        function clearSignature() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // --- SUBMIT LOGIC ---
+        function submitAttendance() {
+            const name = document.getElementById("name").value.trim();
+            const course = document.getElementById("course").value.trim();
+            const time = document.getElementById("time").value;
+            
+            // Check if signature is empty (rough check)
+            const blank = document.createElement('canvas');
+            blank.width = canvas.width;
+            blank.height = canvas.height;
+            if (name === "" || course === "" || canvas.toDataURL() === blank.toDataURL()) {
+                alert("Please fill in all details and provide a signature.");
+                return;
+            }
+
+            const sigData = canvas.toDataURL(); // Converts drawing to image
+
+            // Add to History
+            const historyList = document.getElementById("historyList");
+            const item = document.createElement("li");
+            item.className = "history-item";
+            item.innerHTML = `
+                <strong>${name}</strong> <span style="font-size:11px; color:#777;">${course}</span>
+                <span style="font-size:10px;">${time}</span>
+                <img src="${sigData}" class="history-sig-img" alt="Signature">
+            `;
+            historyList.insertBefore(item, historyList.firstChild);
+
+            // Show Modal
+            document.getElementById("modalMessage").innerHTML = `Attendance logged for <b>${name}</b>`;
+            document.getElementById("successModal").style.display = "flex";
+
+            // Reset Form
+            document.getElementById("name").value = "";
+            document.getElementById("course").value = "";
+            clearSignature();
+        }
+
+        function closeModal() {
+            document.getElementById("successModal").style.display = "none";
+        }
+    </script>
+</body>
+</html>

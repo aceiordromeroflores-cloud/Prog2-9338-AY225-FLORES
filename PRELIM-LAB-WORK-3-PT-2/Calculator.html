@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Prelim Grade Calculator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Prelim Calculator</h1>
+        
+        <div class="input-section">
+            <label>Attendance Score (0-100)</label>
+            <input type="number" id="attendance" placeholder="Enter attendance">
+
+            <label>Lab Work 1</label>
+            <input type="number" id="lab1" placeholder="Grade for Lab 1">
+
+            <label>Lab Work 2</label>
+            <input type="number" id="lab2" placeholder="Grade for Lab 2">
+
+            <label>Lab Work 3</label>
+            <input type="number" id="lab3" placeholder="Grade for Lab 3">
+
+            <button onclick="calculatePrelim()">Compute Standing</button>
+        </div>
+
+        <div id="results" class="results-area" style="display:none;">
+            <h3>Academic Standing</h3>
+            <hr>
+            <p>Lab Work Average: <span id="out-lab">0</span></p>
+            <p>Class Standing: <span id="out-standing">0</span></p>
+            <div class="target-box">
+                <p><strong>To Pass (75), you need a Prelim Exam score of:</strong></p>
+                <h2 id="req-pass">--</h2>
+                
+                <p><strong>To get Excellent (100), you need:</strong></p>
+                <h2 id="req-excel">--</h2>
+            </div>
+            <p id="remarks"></p>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
